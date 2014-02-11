@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.21005.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P1Parsing", "P1Parsing\P1Parsing.csproj", "{57DEC75B-0C9E-4DD5-A629-BBC3FF30BDBC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P1ParsingTests", "P1ParsingTests\P1ParsingTests.csproj", "{B852B884-A99B-4DE5-9849-3134B0FFF124}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DailyP1Mailer", "DailyP1Mailer\DailyP1Mailer.csproj", "{7B157BEA-8E5D-4DF0-AE62-6EB428A0213D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{57DEC75B-0C9E-4DD5-A629-BBC3FF30BDBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57DEC75B-0C9E-4DD5-A629-BBC3FF30BDBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57DEC75B-0C9E-4DD5-A629-BBC3FF30BDBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57DEC75B-0C9E-4DD5-A629-BBC3FF30BDBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B852B884-A99B-4DE5-9849-3134B0FFF124}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B852B884-A99B-4DE5-9849-3134B0FFF124}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B852B884-A99B-4DE5-9849-3134B0FFF124}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B852B884-A99B-4DE5-9849-3134B0FFF124}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B157BEA-8E5D-4DF0-AE62-6EB428A0213D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B157BEA-8E5D-4DF0-AE62-6EB428A0213D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B157BEA-8E5D-4DF0-AE62-6EB428A0213D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B157BEA-8E5D-4DF0-AE62-6EB428A0213D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
