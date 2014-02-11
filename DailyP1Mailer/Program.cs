@@ -36,29 +36,30 @@ namespace DailyP1Mailer
             var yesterday = DateTime.UtcNow.Subtract(oneDay);
             var dailyUsage = GetDailyUsage(yesterday);
 
+            const string header =
+                "<html><head><style>table,th,td{border:2px solid black;border-collapse:collapse;padding-left: 10px; padding-right: 10px;}th {background-color:#ccccdd;}</style></head><body>";
+            const string tableHeader =
+                "<table><tr><th>Dag</th><th>kWh</th><th>Stroom</th><th>kWh &euro;/mnd</th><th>m&#179;</th><th>m&#179; &euro;</th><th>m&#179; &euro;/mnd</th></tr>";
+            const string tableFooter = "</table>";
+            const string footer = "</html>";
+            const string rowTemplate =
+                "<tr><td>{0: ddd d MMM}</td><td>{1:F1}</td><td>&euro;{2:F2}</td><td>&euro;{3:F0}</td><td>{4:F1}</td><td>&euro; {5:F2}</td><td>&euro; {6:F0}</td></tr>";
+            var daysBack = Enumerable.Range(1, 8);
+            var days = daysBack.Select(d => DateTime.UtcNow.Subtract(TimeSpan.FromDays(d)));
+            var dayData = days.Select(TryGetDailyUsage).Where(n => n != null);
+            double euroPerkWh = 0.20879;
+            double euroPerM3 = 0.60803;
+            double daysPerMonth = 365.25 / 12.0;
+            var rowStrings = dayData.Select(u => string.Format(rowTemplate,
+                u.Day, u.Total.kWh, u.Total.kWh * euroPerkWh, u.Total.kWh * euroPerkWh * daysPerMonth, u.Total.M3,
+                u.Total.M3 * euroPerM3, u.Total.M3 * euroPerM3 * daysPerMonth));
+            var rowsString = string.Concat(rowStrings);
+
             using (var message = new MailMessage())
             {
-                //message.To.Add("loreleideboer@gmail.com");
+                message.To.Add("loreleideboer@gmail.com");
                 message.To.Add("bartdb@gmail.com");
                 message.Subject = string.Format("Daily Energy Report for {0:ddd d MMM}", yesterday);
-                const string header =
-                    "<html><head><style>table,th,td{border:2px solid black;border-collapse:collapse;padding-left: 10px; padding-right: 10px;}th {background-color:#ccccdd;}</style></head><body>";
-                const string tableHeader =
-                    "<table><tr><th>Dag</th><th>kWh</th><th>Stroom</th><th>kWh &euro;/mnd</th><th>m&#179;</th><th>m&#179; &euro;</th><th>m&#179; &euro;/mnd</th></tr>";
-                const string tableFooter = "</table>";
-                const string footer = "</html>";
-                const string rowTemplate =
-                    "<tr><td>{0: ddd d MM}</td><td>{1:F1}</td><td>&euro;{2:F2}</td><td>&euro;{3:F0}</td><td>{4:F1}</td><td>&euro; {5:F2}</td><td>&euro; {6:F0}</td></tr>";
-                var daysBack = Enumerable.Range(1, 8);
-                var days = daysBack.Select(d => DateTime.UtcNow.Subtract(TimeSpan.FromDays(d)));
-                var dayData = days.Select(TryGetDailyUsage).Where(n => n != null);
-                double euroPerkWh = 0.20879;
-                double euroPerM3 = 0.60803;
-                double daysPerMonth = 365.25/12.0;
-                var rowStrings = dayData.Select(u => string.Format(rowTemplate,
-                    u.Day, u.Total.kWh, u.Total.kWh*euroPerkWh, u.Total.kWh*euroPerkWh*daysPerMonth, u.Total.M3,
-                    u.Total.M3*euroPerM3, u.Total.M3*euroPerM3*daysPerMonth));
-                var rowsString = string.Concat(rowStrings);
                 message.IsBodyHtml = true;
                 message.Body = header + tableHeader + rowsString + tableFooter + footer;
                 using (var smtp = new SmtpClient())
