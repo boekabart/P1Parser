@@ -41,9 +41,9 @@ namespace P1ParsingTests
             Assert.Equal(20, subject.DateTime.ToUniversalTime().Hour);
             Assert.Equal(48, subject.DateTime.ToUniversalTime().Minute);
             Assert.Equal(52, subject.DateTime.ToUniversalTime().Second);
-            Assert.Equal(1871.0, subject.kWh1, 3);
-            Assert.Equal(1737.0, subject.kWh2, 3);
-            Assert.Equal(3608.0, subject.kWhTotal, 3);
+            Assert.Equal(1871, subject.kWh1);
+            Assert.Equal(1737, subject.kWh2);
+            Assert.Equal(3608, subject.kWhTotal);
             Assert.Equal(1, subject.ActiveMeter);
             Assert.Equal(0.39, subject.kW,3);
             Assert.Equal(1609.335, subject.M3Total, 3);
