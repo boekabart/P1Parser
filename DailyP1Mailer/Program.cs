@@ -83,7 +83,7 @@ namespace DailyP1Mailer
 
         private static DailyUsage GetDailyUsage(DateTime yesterday)
         {
-            const string pathTemplate = @"\\legendary\p1Data$\{0:yyyy-MM-dd}";
+            const string pathTemplate = @"C:\Util\p1logger\Data\{0:yyyy-MM-dd}";
             var yesterdayPath = string.Format(pathTemplate, yesterday);
             var firstFile = Directory.GetFiles(yesterdayPath, "????-??-??T00-00-??").OrderBy(a => a).First();
             var noonFile = Directory.GetFiles(yesterdayPath, "????-??-??T12-00-??").OrderBy(a => a).First();
