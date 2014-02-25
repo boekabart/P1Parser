@@ -19,7 +19,7 @@ namespace P1Parsing
             get { return kWh1 + kWh2; }
         }
 
-        public float kW { get; set; }
+        public double kW { get; set; }
         public int ActiveMeter { get; set; }
         public float M3Total { get; set; }
 
