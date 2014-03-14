@@ -65,12 +65,10 @@ namespace P1SerialToUdp
                     Console.WriteLine(s);
                 };
 
-                Thread.Sleep(1250);
                 Start();
                 while (!Console.KeyAvailable)
                     Thread.Sleep(250);
                 Stop();
-                Thread.Sleep(1250);
             }
             else
             {
@@ -129,7 +127,7 @@ namespace P1SerialToUdp
                 _logFunc("Start.");
                 var serialPort = new SerialPort("COM3", 9600, Parity.Even, 7);
                 serialPort.Open();
-                var serialObservable = serialPort.SerialPortReadToEndObservable().Publish();
+                var serialObservable = serialPort.ToObservable().Publish();
                 
                 var messagesObservable =
                     serialObservable
@@ -173,17 +171,9 @@ namespace P1SerialToUdp
             ));
         }
         
-        public static IObservable<T> DelayedRetry<T>(this IObservable<T> src, TimeSpan delay)
+        public static IObservable<byte> ToObservable(this SerialPort openPort)
         {
-            Contract.Requires(src != null);
-            Contract.Ensures(Contract.Result<IObservable<T>>() != null);
-
-            return delay == TimeSpan.Zero ? src.Retry() : src.Catch(Observable.Timer(delay).SelectMany(x => src).Retry());
-        }
-
-        public static IObservable<byte> SerialPortReadToEndObservable(this SerialPort openPort)
-        {
-            return new StreamHotObservable(openPort.BaseStream);
+            return openPort.BaseStream.ToObservable();
         }
 
         public static async Task<byte[]> ReadAsync(this Stream stream, int bufSize = 1024)
@@ -193,86 +183,13 @@ namespace P1SerialToUdp
             return new ArraySegment<byte>(buffer, 0, read).ToArray();
         }
 
-        public static IObservable<byte> CreateStreamReadToEndObservable(Stream stream)
+        public static IObservable<byte> ToObservable(this Stream stream)
         {
             return
                 Observable.FromAsync(() => stream.ReadAsync())
                     .Repeat()
                     .TakeWhile(_ => _.Length != 0)
                     .SelectMany(arr => arr.ToObservable());
-        }
-    }
-
-    public class StreamHotObservable : IObservable<byte>, IDisposable
-    {
-        private readonly Stream _stream;
-
-        public StreamHotObservable(Stream stream)
-        {
-            _stream = stream;
-            X();
-        }
-
-        private async void X()
-        {
-            while (true)
-            {
-                byte[] bytes;
-                try
-                {
-                    bytes = await _stream.ReadAsync();
-                }
-                catch (Exception e)
-                {
-                    var subs = _subscriberDictionary.Keys;
-                    foreach (var sub in subs)
-                        sub.OnError(e);
-                    return;
-                }
-                if (!bytes.Any())
-                {
-                    var subs = _subscriberDictionary.Keys;
-                    foreach (var sub in subs)
-                        sub.OnCompleted();
-                    return;
-                }
-
-                foreach (var b in bytes)
-                    Pub(b);
-            }
-        }
-
-        private void Pub(byte t)
-        {
-            var subs = _subscriberDictionary.Keys;
-            foreach (var sub in subs)
-                sub.OnNext(t);
-        }
-
-        public IDisposable Subscribe(IObserver<byte> observer)
-        {
-            DoSubscribe(observer);
-            return Disposable.Create(() => Unsubscribe(observer));
-        }
-
-        readonly ConcurrentDictionary<IObserver<byte>,int> _subscriberDictionary = new ConcurrentDictionary<IObserver<byte>, int>();
-
-        private void DoSubscribe(IObserver<byte> observer)
-        {
-            _subscriberDictionary.TryAdd(observer, 0);
-            Console.WriteLine("+ {0}", _subscriberDictionary.Count);
-        }
-
-        private void Unsubscribe(IObserver<byte> observer)
-        {
-            int ignored;
-            _subscriberDictionary.TryRemove(observer, out ignored);
-            Console.WriteLine("- {0}", _subscriberDictionary.Count);
-        }
-
-        public void Dispose()
-        {
-         Console.WriteLine("ASOD8ASKJDHkAJH");   
         }
     }
 }
