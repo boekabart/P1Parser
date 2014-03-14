@@ -20,18 +20,12 @@ namespace P1SerialToUdp
 
         protected override void OnStart(string[] args)
         {
-            Program.Start(Log);
+            Program.Start();
         }
 
         protected override void OnStop()
         {
-            Program.Stop(Log);
-        }
-
-        private static void Log(string xx)
-        {
-            var lines = xx.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(x => string.Format("{0:r} {1}", DateTime.UtcNow, x)).ToArray();
-            File.AppendAllLines(Path.Combine(Program.LogFolder, "P1Service.log"), lines);
+            Program.Stop();
         }
     }
 }
