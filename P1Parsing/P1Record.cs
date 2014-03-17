@@ -43,10 +43,33 @@ namespace P1Parsing
 
         public static P1Record FromNameData(string fileName, string fileData)
         {
+            var dateTime = DateTime.ParseExact(fileName, "yyyy-MM-ddTHH-mm-ss", CultureInfo.CurrentCulture, DateTimeStyles.AssumeUniversal);
+            return FromDataAndDate(fileData, dateTime);
+        }
+
+        public static P1Record FromDataAndNow(string fileData)
+        {
+            return FromDataAndDate(fileData, DateTime.UtcNow);
+        }
+
+        public static P1Record TryFromDataAndNow(string fileData)
+        {
+            try
+            {
+                return FromDataAndDate(fileData, DateTime.UtcNow);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static P1Record FromDataAndDate(string fileData, DateTime dateTime)
+        {
             fileData = fileData.Replace("\r\n", "\n");
             return new P1Record
             {
-                DateTime = DateTime.ParseExact(fileName, "yyyy-MM-ddTHH-mm-ss", CultureInfo.CurrentCulture, DateTimeStyles.AssumeUniversal),
+                DateTime = dateTime,
                 kWh1 = int.Parse(FirstMatchValueOrNull(KWh1Regex, fileData)),
                 kWh2 = int.Parse(FirstMatchValueOrNull(KWh2Regex, fileData)),
                 kW = double.Parse(FirstMatchValueOrNull(KWRegex, fileData)),

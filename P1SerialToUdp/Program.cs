@@ -1,21 +1,17 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Reactive.Concurrency;
-using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Reactive.Threading.Tasks;
 using System.ServiceProcess;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.AspNet.SignalR;
+using Newtonsoft.Json;
+using P1Parsing;
+using Polly;
+using Pushqa.Server.SignalR;
 
 namespace P1SerialToUdp
 {
@@ -82,16 +78,8 @@ namespace P1SerialToUdp
             _logFunc("Stop.");
             try
             {
-                if (_messageSubscription != null)
-                {
-                    _messageSubscription.Dispose();
-                    _messageSubscription = null;
-                }
-                if (_serialConnection != null)
-                {
-                    _serialConnection.Dispose();
-                    _serialConnection = null;
-                }
+                while (Disposables.Any())
+                    Disposables.Pop().Dispose();
             }
             catch (Exception e)
             {
@@ -125,22 +113,36 @@ namespace P1SerialToUdp
             try
             {
                 _logFunc("Start.");
+                const string url = "http://localhost:8080/p1/";
+                var c = new MyPushContext();
+                //Using(WebApp.Start<Startup>(url));
+
                 var serialPort = new SerialPort("COM3", 9600, Parity.Even, 7);
                 serialPort.Open();
                 var serialObservable = serialPort.ToObservable().Publish();
-                
+
                 var messagesObservable =
                     serialObservable
                         .SkipWhile(b => b != '/')
                         .TakeUntil(b => b == '!')
                         .ToArray()
-                        .Repeat();
+                        .Repeat().Publish();
 
-                _messageSubscription = messagesObservable.Subscribe(SaveBytes, e => _logFunc(e.Message),
+                Using(messagesObservable.Subscribe(SaveBytes, e => _logFunc(e.Message),
                     () => _logFunc("Doneth")
-                    );
+                    ));
 
-                _serialConnection = serialObservable.Connect();
+                var p1StringObservable = messagesObservable.Select(Encoding.ASCII.GetString);
+                var recordObservable = p1StringObservable.Select(P1Record.TryFromDataAndNow).Where(_ => _ != null).Publish();
+
+                //c.P1Message = p1StringObservable.AsQbservable();
+                //c.P1Record = p1StringObservable.Select(P1Parsing.P1Record.FromDataAndNow).AsQbservable();
+                Using(recordObservable.Subscribe(WriteLastRecordJson));
+                Using(recordObservable.Buffer(20,1).Subscribe(WriteLastRecordsJson));
+
+                Using(recordObservable.Connect());
+                Using(messagesObservable.Connect());
+                Using(serialObservable.Connect());
                 _logFunc("Started.");
             }
             catch (Exception e)
@@ -150,46 +152,53 @@ namespace P1SerialToUdp
             }
         }
 
-        private static IDisposable _messageSubscription;
-        private static IDisposable _serialConnection;
+        private static readonly Policy IoRetryPolicy = Policy.Handle<IOException>()
+            .WaitAndRetry(3, _ => TimeSpan.FromMilliseconds(100));
+
+        private static void WriteLastRecordJson(P1Record record)
+        {
+            var json = JsonConvert.SerializeObject(record, Formatting.None);
+            IoRetryPolicy.Execute(() => File.WriteAllText(@"c:\inetpub\home.debb.nl\P1\API\LastP1Record.json",
+                json));
+        }
+
+        private static void WriteLastRecordsJson(IEnumerable<P1Record> records)
+        {
+            var json = JsonConvert.SerializeObject(records.Reverse().ToArray(), Formatting.None);
+            IoRetryPolicy.Execute(() => File.WriteAllText(@"c:\inetpub\home.debb.nl\P1\API\LastP1Records.json",
+                json));
+        }
+
+        private static void Using(IDisposable disp)
+        {
+            Disposables.Push(disp);
+        }
+
+        private static readonly Stack<IDisposable> Disposables = new Stack<IDisposable>();
     }
-
-    public static class Extensions
+    /*
+    public class Startup
     {
-        public static IObservable<TSource> TakeUntil<TSource>(
-                this IObservable<TSource> source, Func<TSource, bool> predicate)
+        public void Configuration(Owin.IAppBuilder app)
         {
-            return Observable
-                .Create<TSource>(o => source.Subscribe(x =>
-                {
-                    o.OnNext(x);
-                    if (predicate(x))
-                        o.OnCompleted();
-                },
-                o.OnError,
-                o.OnCompleted
-            ));
+            Owin.OwinExtensions.MapConnection<QueryablePushService<MyPushContext>>( "/events", new ConnectionConfiguration());
         }
-        
-        public static IObservable<byte> ToObservable(this SerialPort openPort)
+    }
+    */
+    public class MyPushContext
+    {
+        /// <summary>
+        /// Gets a one second timer that produces a new message each second with an incrementing id and timestamp.
+        /// </summary>
+        /// <value>The one second timer.</value>
+        public IQbservable<P1Record> P1Record
         {
-            return openPort.BaseStream.ToObservable();
+            get ; set;
         }
-
-        public static async Task<byte[]> ReadAsync(this Stream stream, int bufSize = 1024)
+        public IQbservable<string> P1Message
         {
-            var buffer = new byte[bufSize];
-            var read = await stream.ReadAsync(buffer, 0, bufSize);
-            return new ArraySegment<byte>(buffer, 0, read).ToArray();
-        }
-
-        public static IObservable<byte> ToObservable(this Stream stream)
-        {
-            return
-                Observable.FromAsync(() => stream.ReadAsync())
-                    .Repeat()
-                    .TakeWhile(_ => _.Length != 0)
-                    .SelectMany(arr => arr.ToObservable());
+            get;
+            set;
         }
     }
 }
