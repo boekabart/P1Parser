@@ -34,13 +34,20 @@ namespace P1SerialToUdp
             if (packet.Length == 0)
                 return;
             LogFunc("Saving {0} bytes", packet.Length);
-            var fileName = DateTime.UtcNow.ToString("s").Replace(':', '-');
+            var dateTime = DateTime.UtcNow;
+            var fullPath = GetP1RecordFullPathForDateTime(dateTime);
+            File.WriteAllBytes(fullPath, packet);
+        }
+
+        private static string GetP1RecordFullPathForDateTime(DateTime dateTime)
+        {
+            var fileName = dateTime.ToString("s").Replace(':', '-');
             var folderName = fileName.Substring(0, 10);
             var dirPath = Path.Combine(DataFolder, folderName);
             if (!Directory.Exists(dirPath))
                 Directory.CreateDirectory(dirPath);
             var fullPath = Path.Combine(dirPath, fileName);
-            File.WriteAllBytes(fullPath, packet);
+            return fullPath;
         }
 
         private static void Main(string[] args)
@@ -133,14 +140,24 @@ namespace P1SerialToUdp
                     ));
 
                 var p1StringObservable = messagesObservable.Select(Encoding.ASCII.GetString);
-                var recordObservable = p1StringObservable.Select(P1Record.TryFromDataAndNow).Where(_ => _ != null).Publish();
+                var refData = DateTime.UtcNow;
+                var historicalRecordsObservable =
+                    Enumerable.Range(1, 7200).Reverse()
+                        .Select(sec => refData.AddSeconds(-sec))
+                        .Select(TryReadP1RecordForData)
+                        .Where(rec => rec != null)
+                        .ToObservable();
+                var futureRecordsObservable = p1StringObservable.Select(P1Record.TryFromDataAndNow).Where(_ => _ != null).Publish();
+                var recordObservable = historicalRecordsObservable.Concat(futureRecordsObservable).Publish();
 
                 //c.P1Message = p1StringObservable.AsQbservable();
                 //c.P1Record = p1StringObservable.Select(P1Parsing.P1Record.FromDataAndNow).AsQbservable();
-                Using(recordObservable.Subscribe(WriteLastRecordJson));
-                Using(recordObservable.Buffer(20,1).Subscribe(WriteLastRecordsJson));
+                Using(futureRecordsObservable.Subscribe(WriteLastRecordJson));
+                Using(recordObservable.Buffer(90, 1).Subscribe(WriteLastRecordsJson));
+                Using(recordObservable.Buffer(6).Select(buf => new P1Record { DateTime = buf.First().DateTime, kW = buf.Average(p1 => p1.kW) }).Buffer(90, 1).Subscribe(WriteP1RecordsPerMinuteJson));
 
                 Using(recordObservable.Connect());
+                Using(futureRecordsObservable.Connect());
                 Using(messagesObservable.Connect());
                 Using(serialObservable.Connect());
                 _logFunc("Started.");
@@ -149,6 +166,22 @@ namespace P1SerialToUdp
             {
                 _logFunc("Exception1: " + e.Message);
                 throw;
+            }
+        }
+
+        private static P1Record TryReadP1RecordForData(DateTime arg)
+        {
+            var fullPath = GetP1RecordFullPathForDateTime(arg.ToUniversalTime());
+            if (!File.Exists(fullPath))
+                return null;
+
+            try
+            {
+                return P1Record.FromFile(fullPath);
+            }
+            catch
+            {
+                return null;
             }
         }
 
@@ -166,6 +199,13 @@ namespace P1SerialToUdp
         {
             var json = JsonConvert.SerializeObject(records.Reverse().ToArray(), Formatting.None);
             IoRetryPolicy.Execute(() => File.WriteAllText(@"c:\inetpub\home.debb.nl\P1\API\LastP1Records.json",
+                json));
+        }
+
+        private static void WriteP1RecordsPerMinuteJson(IEnumerable<P1Record> records)
+        {
+            var json = JsonConvert.SerializeObject(records.Reverse().ToArray(), Formatting.None);
+            IoRetryPolicy.Execute(() => File.WriteAllText(@"c:\inetpub\home.debb.nl\P1\API\P1RecordsPerMinute.json",
                 json));
         }
 
